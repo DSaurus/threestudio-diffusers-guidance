@@ -132,13 +132,17 @@ class DiffusersGuidance(BaseObject):
             device=self.device,
         )
 
+        input_cond = {
+            "input_rgb": rgb,
+        }
+
         text_cond = self.prepare_text_embeddings(
             prompt_utils, elevation, azimuth, camera_distances, **kwargs
         )
 
         other_cond = self.prepare_other_conditions(**kwargs)
 
-        merged_cond = {**text_cond, **other_cond}
+        merged_cond = {**text_cond, **other_cond, **input_cond}
 
         guidance_out = {
             "min_step": self.min_step,
@@ -156,6 +160,10 @@ class DiffusersGuidance(BaseObject):
         if hasattr(self, "init_ism"):
             loss_ism = self.compute_grad_ism(latents, t, **merged_cond)
             guidance_out["loss_ism"] = loss_ism
+
+        if hasattr(self, "init_hifa"):
+            loss_hifa = self.compute_grad_hifa(latents, t, **merged_cond)
+            guidance_out["loss_hifa"] = loss_hifa
 
         return guidance_out
 

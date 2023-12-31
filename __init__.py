@@ -19,4 +19,4 @@ from .guidance import (
     diffusers_stable_diffusion_guidance,
     diffusers_stable_diffusion_xl_guidance,
 )
-from .sampler import ism_sampler, lcm_sampler, sds_sampler
+from .sampler import hifa_sampler, ism_sampler, lcm_sampler, sds_sampler
