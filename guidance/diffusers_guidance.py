@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 
+import threestudio
 import torch
 from diffusers.utils.import_utils import is_xformers_available
-
-import threestudio
 from threestudio.models.prompt_processors.base import PromptProcessorOutput
 from threestudio.utils.base import BaseObject
 from threestudio.utils.misc import C, cleanup, parse_version
 from threestudio.utils.typing import *
 
 from ..sampler.sds_sampler import SDSSampler
+
 
 @threestudio.register("diffusers-guidance")
 class DiffusersGuidance(BaseObject, SDSSampler):
@@ -42,19 +42,21 @@ class DiffusersGuidance(BaseObject, SDSSampler):
         self.weights_dtype = (
             torch.float16 if self.cfg.half_precision_weights else torch.float32
         )
-        
+
         if not hasattr(self, "pipe_kwargs"):
             self.pipe_kwargs = {}
 
-        self.pipe_kwargs.update({
-            "safety_checker": None,
-            "feature_extractor": None,
-            "requires_safety_checker": False,
-            "torch_dtype": self.weights_dtype,
-        })
+        self.pipe_kwargs.update(
+            {
+                "safety_checker": None,
+                "feature_extractor": None,
+                "requires_safety_checker": False,
+                "torch_dtype": self.weights_dtype,
+            }
+        )
 
         self.create_pipe()
-        
+
         if self.cfg.enable_memory_efficient_attention:
             if parse_version(torch.__version__) >= parse_version("2"):
                 threestudio.info(
@@ -95,9 +97,11 @@ class DiffusersGuidance(BaseObject, SDSSampler):
         self.min_step = int(self.num_train_timesteps * min_step_percent)
         self.max_step = int(self.num_train_timesteps * max_step_percent)
 
-    def prepare_latents(self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False) -> Float[Tensor, "B 4 64 64"]:
+    def prepare_latents(
+        self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False
+    ) -> Float[Tensor, "B 4 64 64"]:
         raise NotImplementedError
-    
+
     def __call__(
         self,
         rgb: Float[Tensor, "B H W C"],
@@ -119,13 +123,16 @@ class DiffusersGuidance(BaseObject, SDSSampler):
             dtype=torch.long,
             device=self.device,
         )
-        
+
         text_embeddings = prompt_utils.get_text_embeddings(
             elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
         )
 
         loss_sds = self.compute_grad_sds(
-            latents, t, text_embeddings[:batch_size], negative_text_embeddings=text_embeddings[batch_size:],
+            latents,
+            t,
+            text_embeddings[:batch_size],
+            negative_text_embeddings=text_embeddings[batch_size:],
         )
 
         guidance_out = {

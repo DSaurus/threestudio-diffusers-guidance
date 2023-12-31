@@ -1,14 +1,17 @@
 from dataclasses import dataclass, field
 
+import threestudio
 import torch
 import torch.nn.functional as F
 from diffusers import StableDiffusionPipeline
-import threestudio
 from threestudio.utils.typing import *
+
 from .diffusers_guidance import DiffusersGuidance
+
 
 def prepare_latents(self, *args, **kwargs):
     return self.prepared_latents
+
 
 @threestudio.register("diffusers-stable-diffusion-guidance")
 class DiffusersStableDiffusionGuidance(DiffusersGuidance):
@@ -17,7 +20,7 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
         fixed_width: int = 512
         fixed_height: int = 512
         fixed_latent_width: int = 64
-        fixed_latent_height: int = 64    
+        fixed_latent_height: int = 64
 
     cfg: Config
 
@@ -26,32 +29,44 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
         self.pipe.vae.eval()
         for p in self.pipe.vae.parameters():
             p.requires_grad_(False)
-    
+
     def create_pipe(self):
-        HookPipeline = type('HookPipeline', (StableDiffusionPipeline,), {'prepare_latents': prepare_latents})
+        HookPipeline = type(
+            "HookPipeline",
+            (StableDiffusionPipeline,),
+            {"prepare_latents": prepare_latents},
+        )
         self.pipe = HookPipeline.from_pretrained(
             self.cfg.pretrained_model_name_or_path,
             **self.pipe_kwargs,
         ).to(self.device)
         self.output_type = "latent"
 
-    def prepare_latents(self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False) -> Float[Tensor, "B 4 64 64"]:
+    def prepare_latents(
+        self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False
+    ) -> Float[Tensor, "B 4 64 64"]:
         rgb_BCHW = rgb.permute(0, 3, 1, 2)
         latents: Float[Tensor, "B 4 64 64"]
         if rgb_as_latents:
             if self.cfg.fixed_latent_height > 0 and self.cfg.fixed_latent_width > 0:
                 latents = F.interpolate(
-                    rgb_BCHW, (self.cfg.fixed_latent_height, self.cfg.fixed_latent_width), mode="bilinear", align_corners=False
+                    rgb_BCHW,
+                    (self.cfg.fixed_latent_height, self.cfg.fixed_latent_width),
+                    mode="bilinear",
+                    align_corners=False,
                 )
         else:
             if self.cfg.fixed_height > 0 and self.cfg.fixed_width > 0:
                 rgb_BCHW_512 = F.interpolate(
-                    rgb_BCHW, (self.cfg.fixed_height, self.cfg.fixed_width), mode="bilinear", align_corners=False
+                    rgb_BCHW,
+                    (self.cfg.fixed_height, self.cfg.fixed_width),
+                    mode="bilinear",
+                    align_corners=False,
                 )
             # encode image into latents with vae
             latents = self.encode_images(rgb_BCHW_512)
         return latents
-    
+
     @torch.cuda.amp.autocast(enabled=False)
     def encode_images(
         self, imgs: Float[Tensor, "B 3 512 512"]
