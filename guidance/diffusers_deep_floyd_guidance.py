@@ -41,7 +41,6 @@ class DiffusersDFGuidance(DiffusersGuidance):
             variant="fp16" if self.cfg.half_precision_weights else None,
             torch_dtype=self.weights_dtype,
         ).to(self.device)
-        self.output_type = "pt"
 
     def prepare_latents(
         self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False
@@ -53,3 +52,8 @@ class DiffusersDFGuidance(DiffusersGuidance):
             rgb_BCHW, (64, 64), mode="bilinear", align_corners=False
         )
         return latents
+
+    def prepare_other_conditions(self, **kwargs):
+        output = super().prepare_other_conditions(**kwargs)
+        output.update({"output_type": "pt"})
+        return output

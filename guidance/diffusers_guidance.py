@@ -92,15 +92,25 @@ class DiffusersGuidance(BaseObject, SDSSampler):
     def create_pipe(self):
         raise NotImplementedError
 
-    @torch.cuda.amp.autocast(enabled=False)
-    def set_min_max_steps(self, min_step_percent=0.02, max_step_percent=0.98):
-        self.min_step = int(self.num_train_timesteps * min_step_percent)
-        self.max_step = int(self.num_train_timesteps * max_step_percent)
-
     def prepare_latents(
         self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False
     ) -> Float[Tensor, "B 4 64 64"]:
         raise NotImplementedError
+
+    def prepare_text_embeddings(
+        self, prompt_utils, elevation, azimuth, camera_distances, **kwargs
+    ):
+        text_embeddings = prompt_utils.get_text_embeddings(
+            elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
+        )
+        batch_size = text_embeddings.shape[0] // 2
+        return {
+            "prompt_embeds": text_embeddings[:batch_size],
+            "negative_prompt_embeds": text_embeddings[batch_size:],
+        }
+
+    def prepare_other_conditions(self, **kwargs):
+        return {"guidance_scale": self.cfg.guidance_scale}
 
     def __call__(
         self,
@@ -124,16 +134,15 @@ class DiffusersGuidance(BaseObject, SDSSampler):
             device=self.device,
         )
 
-        text_embeddings = prompt_utils.get_text_embeddings(
-            elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
+        text_cond = self.prepare_text_embeddings(
+            prompt_utils, elevation, azimuth, camera_distances, **kwargs
         )
 
-        loss_sds = self.compute_grad_sds(
-            latents,
-            t,
-            text_embeddings[:batch_size],
-            negative_text_embeddings=text_embeddings[batch_size:],
-        )
+        other_cond = self.prepare_other_conditions(**kwargs)
+
+        merged_cond = {**text_cond, **other_cond}
+
+        loss_sds = self.compute_grad_sds(latents, t, **merged_cond)
 
         guidance_out = {
             "loss_sds": loss_sds,
@@ -142,6 +151,11 @@ class DiffusersGuidance(BaseObject, SDSSampler):
         }
 
         return guidance_out
+
+    @torch.cuda.amp.autocast(enabled=False)
+    def set_min_max_steps(self, min_step_percent=0.02, max_step_percent=0.98):
+        self.min_step = int(self.num_train_timesteps * min_step_percent)
+        self.max_step = int(self.num_train_timesteps * max_step_percent)
 
     def update_step(self, epoch: int, global_step: int, on_load_weights: bool = False):
         # clip grad for stable training as demonstrated in
