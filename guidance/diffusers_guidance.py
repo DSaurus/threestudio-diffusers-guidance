@@ -154,8 +154,8 @@ class DiffusersGuidance(BaseObject):
             guidance_out["loss_lcm"] = loss_lcm
 
         if hasattr(self, "init_ism"):
-            loss_lcm = self.compute_grad_ism(latents, t, **merged_cond)
-            guidance_out["loss_ism"] = loss_lcm
+            loss_ism = self.compute_grad_ism(latents, t, **merged_cond)
+            guidance_out["loss_ism"] = loss_ism
 
         return guidance_out
 
