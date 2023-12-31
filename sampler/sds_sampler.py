@@ -28,13 +28,9 @@ class SDSSampler:
         self.sds_scheduler.config.variance_type = "none"
         self.init_sds = True
 
+    # @torch.cuda.amp.autocast(enabled=False)
     def compute_grad_sds(
-        self,
-        latents: Float[Tensor, "B 4 64 64"],
-        t: Int[Tensor, "B"],
-        text_embeddings,
-        negative_text_embeddings,
-        **kwargs
+        self, latents: Float[Tensor, "B 4 64 64"], t: Int[Tensor, "B"], **kwargs
     ):
         if not self.init_sds:
             self.init_sds_sampler()
@@ -47,17 +43,10 @@ class SDSSampler:
 
         noise = torch.randn_like(latents)
         noisy_latents = self.sds_scheduler.add_noise(latents, noise, t)
-        # predict the noise residual with unet, NO grad!
-        with torch.no_grad():
+        with torch.inference_mode():
             self.pipe.prepared_latents = noisy_latents
             self.pipe.scheduler = self.sds_scheduler
-            pred_latents = self.pipe(
-                prompt_embeds=text_embeddings,
-                negative_prompt_embeds=negative_text_embeddings,
-                output_type=self.output_type,
-                guidance_scale=self.cfg.guidance_scale,
-                **kwargs
-            ).images
+            pred_latents = self.pipe(**kwargs).images
             if type(pred_latents) != torch.Tensor:
                 pred_images = torch.from_numpy(pred_latents)
                 pred_latents = self.prepare_latents(pred_images)
@@ -65,7 +54,7 @@ class SDSSampler:
         loss_sds = (
             0.5
             * F.mse_loss(
-                latents, pred_latents.detach().to(noisy_latents), reduction="sum"
+                latents, pred_latents.clone().to(noisy_latents.device), reduction="sum"
             )
             / batch_size
         )

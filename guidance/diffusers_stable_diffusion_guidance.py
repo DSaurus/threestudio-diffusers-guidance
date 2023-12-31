@@ -40,13 +40,12 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
             self.cfg.pretrained_model_name_or_path,
             **self.pipe_kwargs,
         ).to(self.device)
-        self.output_type = "latent"
 
     def prepare_latents(
         self, rgb: Float[Tensor, "B H W C"], rgb_as_latents=False
-    ) -> Float[Tensor, "B 4 64 64"]:
+    ) -> Float[Tensor, "B 4 H W"]:
         rgb_BCHW = rgb.permute(0, 3, 1, 2)
-        latents: Float[Tensor, "B 4 64 64"]
+        latents: Float[Tensor, "B 4 H W"]
         if rgb_as_latents:
             if self.cfg.fixed_latent_height > 0 and self.cfg.fixed_latent_width > 0:
                 latents = F.interpolate(
@@ -92,3 +91,8 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
         image = self.pipe.vae.decode(latents.to(self.weights_dtype)).sample
         image = (image * 0.5 + 0.5).clamp(0, 1)
         return image.to(input_dtype)
+
+    def prepare_other_conditions(self, **kwargs):
+        output = super().prepare_other_conditions(**kwargs)
+        output.update({"output_type": "latent"})
+        return output
