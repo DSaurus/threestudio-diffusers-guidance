@@ -67,7 +67,7 @@ system:
     pretrained_model_name_or_path: "DeepFloyd/IF-I-XL-v1.0"
     prompt: ???
 
-  guidance_type: "diffusers-deep-floyd-guidance"
+  guidance_type: "diffusers-deep-floyd-guidance:sds-sampler"
   guidance:
     pretrained_model_name_or_path: "DeepFloyd/IF-I-XL-v1.0"
     guidance_scale: 20.

@@ -8,11 +8,9 @@ from threestudio.utils.base import BaseObject
 from threestudio.utils.misc import C, cleanup, parse_version
 from threestudio.utils.typing import *
 
-from ..sampler.sds_sampler import SDSSampler
-
 
 @threestudio.register("diffusers-guidance")
-class DiffusersGuidance(BaseObject, SDSSampler):
+class DiffusersGuidance(BaseObject):
     @dataclass
     class Config(BaseObject.Config):
         pretrained_model_name_or_path: str = "runwayml/stable-diffusion-v1-5"
@@ -123,7 +121,7 @@ class DiffusersGuidance(BaseObject, SDSSampler):
         **kwargs,
     ):
         batch_size = rgb.shape[0]
-        latents = self.prepare_latents(rgb)
+        latents = self.prepare_latents(rgb, rgb_as_latents=rgb_as_latents)
 
         # timestep ~ U(0.02, 0.98) to avoid very high/low noise level
         t = torch.randint(
@@ -142,13 +140,18 @@ class DiffusersGuidance(BaseObject, SDSSampler):
 
         merged_cond = {**text_cond, **other_cond}
 
-        loss_sds = self.compute_grad_sds(latents, t, **merged_cond)
-
         guidance_out = {
-            "loss_sds": loss_sds,
             "min_step": self.min_step,
             "max_step": self.max_step,
         }
+
+        if hasattr(self, "init_sds"):
+            loss_sds = self.compute_grad_sds(latents, t, **merged_cond)
+            guidance_out["loss_sds"] = loss_sds
+
+        if hasattr(self, "init_lcm"):
+            loss_lcm = self.compute_grad_lcm(latents, t, **merged_cond)
+            guidance_out["loss_lcm"] = loss_lcm
 
         return guidance_out
 

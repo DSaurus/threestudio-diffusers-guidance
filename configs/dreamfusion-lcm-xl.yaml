@@ -48,10 +48,7 @@ system:
       start_step: 2000
       update_steps: 500
 
-  material_type: "diffuse-with-point-light-material"
-  material:
-    ambient_only_steps: 2001
-    albedo_activation: sigmoid
+  material_type: "no-material"
 
   background_type: "neural-environment-map-background"
   background:
@@ -67,13 +64,14 @@ system:
     pretrained_model_name_or_path: "stabilityai/stable-diffusion-2-1-base"
     prompt: ???
 
-  guidance_type: "diffusers-stable-diffusion-guidance:sds-sampler"
+  guidance_type: "diffusers-lcm-xl-guidance:lcm-sampler"
   guidance:
-    pretrained_model_name_or_path: "stabilityai/stable-diffusion-2-1-base"
-    guidance_scale: 100.
-    weighting_strategy: sds
-    min_step_percent: 0.02
+    pretrained_model_name_or_path: "stabilityai/stable-diffusion-xl-base-1.0"
+    pretrained_unet_name_or_path: "latent-consistency/lcm-sdxl"
+    guidance_scale: 8.
+    min_step_percent: 0.5
     max_step_percent: 0.98
+
 
   loggers:
     wandb:
@@ -82,8 +80,8 @@ system:
       name: None
 
   loss:
-    lambda_sds: 1.
-    lambda_orient: [0, 10., 1000., 5000]
+    lambda_lcm: 1.
+    lambda_orient: 0.
     lambda_sparsity: 1.
     lambda_opaque: 0.
   optimizer:

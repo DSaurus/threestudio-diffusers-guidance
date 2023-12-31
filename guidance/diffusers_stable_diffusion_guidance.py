@@ -72,7 +72,7 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
     ) -> Float[Tensor, "B 4 64 64"]:
         input_dtype = imgs.dtype
         imgs = imgs * 2.0 - 1.0
-        posterior = self.pipe.vae.encode(imgs.to(self.weights_dtype)).latent_dist
+        posterior = self.pipe.vae.encode(imgs.to(self.pipe.vae.dtype)).latent_dist
         latents = posterior.sample() * self.pipe.vae.config.scaling_factor
         return latents.to(input_dtype)
 
@@ -80,15 +80,16 @@ class DiffusersStableDiffusionGuidance(DiffusersGuidance):
     def decode_latents(
         self,
         latents: Float[Tensor, "B 4 H W"],
-        latent_height: int = 64,
-        latent_width: int = 64,
     ) -> Float[Tensor, "B 3 512 512"]:
         input_dtype = latents.dtype
         latents = F.interpolate(
-            latents, (latent_height, latent_width), mode="bilinear", align_corners=False
+            latents,
+            (self.cfg.fixed_latent_height, self.cfg.fixed_latent_width),
+            mode="bilinear",
+            align_corners=False,
         )
         latents = 1 / self.pipe.vae.config.scaling_factor * latents
-        image = self.pipe.vae.decode(latents.to(self.weights_dtype)).sample
+        image = self.pipe.vae.decode(latents.to(self.pipe.vae.dtype)).sample
         image = (image * 0.5 + 0.5).clamp(0, 1)
         return image.to(input_dtype)
 

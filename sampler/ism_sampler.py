@@ -5,48 +5,53 @@ from diffusers import DDIMScheduler
 from threestudio.utils.typing import *
 
 
-def sds_set_timesteps(self, *args, **kwargs):
-    self.timesteps = self.sds_timesteps
+def ism_set_timesteps(self, *args, **kwargs):
+    self.timesteps = self.ism_timesteps
     self.num_inference_steps = 1
 
 
-@threestudio.register("sds-sampler")
-class SDSSampler:
-    init_sds: bool = False
+@threestudio.register("ism-sampler")
+class ISMSampler:
+    init_ism: bool = False
 
-    def init_sds_sampler(
+    def init_ism_sampler(
         self,
     ):
-        SDSScheduler = type(
-            "SDSScheduler", (DDIMScheduler,), {"set_timesteps": sds_set_timesteps}
+        ISMScheduler = type(
+            "ISMScheduler", (DDIMScheduler,), {"set_timesteps": ism_set_timesteps}
         )
-        self.sds_scheduler = SDSScheduler.from_config(self.pipe.scheduler.config)
-        self.sds_scheduler.config.variance_type = "none"
-        self.init_sds = True
+        self.ism_scheduler = ISMScheduler.from_config(self.pipe.scheduler.config)
+        self.ism_scheduler.config.variance_type = "none"
+        self.init_ism = True
 
-    def compute_grad_sds(
+    def pred_latent_to_noise(
+        self,
+    ):
+        pass
+
+    def compute_grad_ism(
         self, latents: Float[Tensor, "B 4 64 64"], t: Int[Tensor, "B"], **kwargs
     ):
-        if not self.init_sds:
-            self.init_sds_sampler()
+        if not self.init_ism:
+            self.init_ism_sampler()
         original_scheduler = self.pipe.scheduler
         batch_size = latents.shape[0]
 
         timesteps = t[:1]
         t[:] = t[:1]
-        self.sds_scheduler.sds_timesteps = timesteps
+        self.ism_scheduler.ism_timesteps = timesteps
 
         noise = torch.randn_like(latents)
-        noisy_latents = self.sds_scheduler.add_noise(latents, noise, t)
+        noisy_latents = self.ism_scheduler.add_noise(latents, noise, t)
         with torch.inference_mode():
             self.pipe.prepared_latents = noisy_latents
-            self.pipe.scheduler = self.sds_scheduler
+            self.pipe.scheduler = self.ism_scheduler
             pred_latents = self.pipe(**kwargs).images
             if type(pred_latents) != torch.Tensor:
                 pred_images = torch.from_numpy(pred_latents)
                 pred_latents = self.prepare_latents(pred_images)
 
-        loss_sds = (
+        loss_ism = (
             0.5
             * F.mse_loss(
                 latents, pred_latents.clone().to(noisy_latents.device), reduction="sum"
@@ -55,4 +60,4 @@ class SDSSampler:
         )
 
         self.pipe.scheduler = original_scheduler
-        return loss_sds
+        return loss_ism
