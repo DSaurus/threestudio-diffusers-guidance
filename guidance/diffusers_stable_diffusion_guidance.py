@@ -5,13 +5,13 @@ import torch.nn.functional as F
 from diffusers import StableDiffusionPipeline
 import threestudio
 from threestudio.utils.typing import *
-from threestudio.models.guidance.diffusers_guidance import DiffusersGuidance
+from .diffusers_guidance import DiffusersGuidance
 
 def prepare_latents(self, *args, **kwargs):
     return self.prepared_latents
 
 @threestudio.register("diffusers-stable-diffusion-guidance")
-class DiffusersSDGuidance(DiffusersGuidance):
+class DiffusersStableDiffusionGuidance(DiffusersGuidance):
     @dataclass
     class Config(DiffusersGuidance.Config):
         fixed_width: int = 512

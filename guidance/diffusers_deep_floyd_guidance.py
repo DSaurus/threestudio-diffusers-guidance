@@ -5,7 +5,7 @@ import inspect
 
 import threestudio
 from threestudio.utils.typing import *
-from threestudio.models.guidance.diffusers_guidance import DiffusersGuidance
+from .diffusers_guidance import DiffusersGuidance
 
 def prepare_intermediate_images(self, *args, **kwargs):
     return self.prepared_latents

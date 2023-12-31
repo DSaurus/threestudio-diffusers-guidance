@@ -9,7 +9,7 @@ from threestudio.utils.base import BaseObject
 from threestudio.utils.misc import C, cleanup, parse_version
 from threestudio.utils.typing import *
 
-from threestudio.models.guidance.diffusers_sds import SDSSampler
+from ..sampler.sds_sampler import SDSSampler
 
 @threestudio.register("diffusers-guidance")
 class DiffusersGuidance(BaseObject, SDSSampler):
