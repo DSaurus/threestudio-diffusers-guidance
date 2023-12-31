@@ -153,6 +153,10 @@ class DiffusersGuidance(BaseObject):
             loss_lcm = self.compute_grad_lcm(latents, t, **merged_cond)
             guidance_out["loss_lcm"] = loss_lcm
 
+        if hasattr(self, "init_ism"):
+            loss_lcm = self.compute_grad_ism(latents, t, **merged_cond)
+            guidance_out["loss_ism"] = loss_lcm
+
         return guidance_out
 
     @torch.cuda.amp.autocast(enabled=False)
