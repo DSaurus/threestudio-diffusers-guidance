@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from diffusers import DDIMScheduler
 from threestudio.utils.typing import *
 
+from .utils import samples_to_noise
+
 
 def sds_set_timesteps(self, *args, **kwargs):
     self.timesteps = self.sds_timesteps
@@ -23,6 +25,7 @@ class SDSSampler:
         self.sds_scheduler = SDSScheduler.from_config(self.pipe.scheduler.config)
         self.sds_scheduler.config.variance_type = "none"
         self.init_sds = True
+        self.alphas_cumprod = self.sds_scheduler.alphas_cumprod.to(self.device)
 
     def compute_grad_sds(
         self, latents: Float[Tensor, "B 4 64 64"], t: Int[Tensor, "B"], **kwargs
@@ -45,13 +48,18 @@ class SDSSampler:
             if type(pred_latents) != torch.Tensor:
                 pred_images = torch.from_numpy(pred_latents)
                 pred_latents = self.prepare_latents(pred_images)
+            pred_noise = samples_to_noise(
+                pred_latents,
+                noisy_latents,
+                timesteps,
+                self.sds_scheduler.alphas_cumprod,
+            )
+            w = (1 - self.alphas_cumprod[t]).view(-1, 1, 1, 1)
+            sds_grad = w * (pred_noise - noise)
+            target = latents - sds_grad
 
         loss_sds = (
-            0.5
-            * F.mse_loss(
-                latents, pred_latents.clone().to(noisy_latents.device), reduction="sum"
-            )
-            / batch_size
+            0.5 * F.mse_loss(latents, target.clone(), reduction="sum") / batch_size
         )
 
         self.pipe.scheduler = original_scheduler
