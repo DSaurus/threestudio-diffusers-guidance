@@ -1,4 +1,4 @@
-# threestudio-shap-e
+# threestudio-diffusers-guidance
 This is diffusers guidance extension of threestudio.
 
 ## Installation
