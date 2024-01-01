@@ -95,11 +95,24 @@ class DiffusersGuidance(BaseObject):
     ) -> Float[Tensor, "B 4 64 64"]:
         raise NotImplementedError
 
-    def prepare_text_embeddings(
-        self, prompt_utils, elevation, azimuth, camera_distances, **kwargs
-    ):
+    def prepare_text_embeddings(self, prompt_utils, **kwargs):
+        if (
+            "elevation" in kwargs
+            and "azimuth" in kwargs
+            and "camera_distances" in kwargs
+        ):
+            elevation = kwargs["elevation"]
+            azimuth = kwargs["azimuth"]
+            camera_distances = kwargs["camera_distances"]
+            view_dependent_prompting = self.cfg.view_dependent_prompting
+        else:
+            elevation = torch.zeros(1).to(self.device)
+            azimuth = torch.zeros(1).to(self.device)
+            camera_distances = torch.zeros(1).to(self.device)
+            view_dependent_prompting = False
+
         text_embeddings = prompt_utils.get_text_embeddings(
-            elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
+            elevation, azimuth, camera_distances, view_dependent_prompting
         )
         batch_size = text_embeddings.shape[0] // 2
         return {
@@ -114,9 +127,6 @@ class DiffusersGuidance(BaseObject):
         self,
         rgb: Float[Tensor, "B H W C"],
         prompt_utils: PromptProcessorOutput,
-        elevation: Float[Tensor, "B"],
-        azimuth: Float[Tensor, "B"],
-        camera_distances: Float[Tensor, "B"],
         rgb_as_latents=False,
         **kwargs,
     ):
@@ -136,9 +146,7 @@ class DiffusersGuidance(BaseObject):
             "input_rgb": rgb,
         }
 
-        text_cond = self.prepare_text_embeddings(
-            prompt_utils, elevation, azimuth, camera_distances, **kwargs
-        )
+        text_cond = self.prepare_text_embeddings(prompt_utils, **kwargs)
 
         other_cond = self.prepare_other_conditions(**kwargs)
 

@@ -4,8 +4,6 @@ import torch.nn.functional as F
 from diffusers import DDIMScheduler
 from threestudio.utils.typing import *
 
-from .utils import samples_to_noise
-
 
 def hifa_set_timesteps(self, *args, **kwargs):
     self.timesteps = self.hifa_timesteps

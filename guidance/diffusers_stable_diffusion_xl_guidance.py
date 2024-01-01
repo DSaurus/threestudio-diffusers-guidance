@@ -38,19 +38,5 @@ class DiffusersStableDiffusionXLGuidance(DiffusersStableDiffusionGuidance):
         self.output_type = "latent"
         self.pipe.vae.to(dtype=torch.float32)
 
-    def prepare_text_embeddings(
-        self, prompt_utils, elevation, azimuth, camera_distances, **kwargs
-    ):
+    def prepare_text_embeddings(self, prompt_utils, **kwargs):
         return {"prompt": prompt_utils.prompt}
-        # text_embeddings = prompt_utils.get_text_embeddings(
-        #     elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
-        # )
-        # batch_size = text_embeddings.shape[0] // 2
-        # return {
-        #     "prompt_embeds": text_embeddings[:batch_size],
-        #     "negative_prompt_embeds": text_embeddings[batch_size:],
-        #     "pooled_prompt_embeds": text_embeddings[0].view(batch_size, -1),
-        #     "negative_pooled_prompt_embeds": text_embeddings[batch_size:].view(
-        #         batch_size, -1
-        #     ),
-        # }
